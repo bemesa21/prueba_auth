@@ -2,6 +2,7 @@ defmodule PruebaAuthWeb.UserAuth do
   import Plug.Conn
   import Phoenix.Controller
 
+  alias Phoenix.LiveView
   alias PruebaAuth.Accounts
   alias PruebaAuthWeb.Router.Helpers, as: Routes
 
@@ -105,6 +106,55 @@ defmodule PruebaAuthWeb.UserAuth do
       else
         {nil, conn}
       end
+    end
+  end
+
+  def on_mount(:mount_current_user, _params, session, socket) do
+    {:cont, mount_current_user(session, socket)}
+  end
+
+  def on_mount(:ensure_authenticated, _params, session, socket) do
+    socket = mount_current_user(session, socket)
+
+    case socket.assigns.current_user do
+      nil ->
+        {:halt, LiveView.redirect(socket, to: Routes.user_login_path(socket, :new))}
+
+      _ ->
+        {:cont, socket}
+    end
+  end
+
+  def on_mount(:get_user_by_reset_password_token, params, _session, socket) do
+    if socket.assigns.live_action in [:edit, :update] do
+      set_user_and_token(socket, params)
+    else
+      {:cont, socket}
+    end
+  end
+
+  defp mount_current_user(session, socket) do
+    case session do
+      %{"user_token" => user_token} ->
+        LiveView.assign_new(socket, :current_user, fn ->
+          Accounts.get_user_by_session_token(user_token)
+        end)
+
+      %{} ->
+        LiveView.assign_new(socket, :current_user, fn -> nil end)
+    end
+  end
+
+  defp set_user_and_token(socket, %{"token" => token}) do
+    if user = Accounts.get_user_by_reset_password_token(token) do
+      {:cont, LiveView.assign(socket, user: user, token: token)}
+    else
+      socket =
+        socket
+        |> LiveView.put_flash(:error, "Reset password link is invalid or it has expired.")
+        |> LiveView.redirect(to: "/")
+
+      {:halt, socket}
     end
   end
 
