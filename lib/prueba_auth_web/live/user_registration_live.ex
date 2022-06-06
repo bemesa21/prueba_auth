@@ -8,7 +8,15 @@ defmodule PruebaAuthWeb.UserRegistrationLive do
     ~H"""
     <h1>Register</h1>
 
-    <.form let={f} for={@changeset} phx-submit="save" phx-trigger-action={@trigger_submit} action={Routes.user_session_path(@socket, :create)} as={:user}>
+    <.form
+      let={f}
+      for={@changeset}
+      phx-submit="save"
+      phx-change="validate"
+      phx-trigger-action={@trigger_submit}
+      action={Routes.user_session_path(@socket, :create)}
+      as={:user}
+    >
       <%= if @changeset.action do %>
         <div class="alert alert-danger">
           <p>Oops, something went wrong! Please check the errors below.</p>
@@ -41,9 +49,7 @@ defmodule PruebaAuthWeb.UserRegistrationLive do
   end
 
   def handle_event("save", %{"user" => user_params}, socket) do
-    IO.inspect(:on_save)
-
-    case Accounts.register_user(user_params) |> IO.inspect(label: :register_user) do
+    case Accounts.register_user(user_params) do
       {:ok, user} ->
         {:ok, _} =
           Accounts.deliver_user_confirmation_instructions(
@@ -51,17 +57,21 @@ defmodule PruebaAuthWeb.UserRegistrationLive do
             &Routes.user_confirmation_url(socket, :edit, &1)
           )
 
-        changeset = Accounts.change_user_registration(%User{}, user_params) |> IO.inspect(label: :user)
         socket =
-          socket
-          |> put_flash(:info, "User created successfully.")
-          |> assign(:trigger_submit, true)
-          |> assign(:changeset, changeset)
+        socket
+        |> put_flash(:info, "User created successfully.")
+        |> assign(:trigger_submit, true)
 
         {:noreply, socket}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :changeset, changeset)}
     end
+  end
+
+  def handle_event("validate", %{"user" => user_params}, socket) do
+    changeset = Accounts.change_user_registration(%User{}, user_params)
+
+    {:noreply, assign(socket, :changeset, changeset)}
   end
 end
