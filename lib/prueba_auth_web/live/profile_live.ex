@@ -1,7 +1,7 @@
 defmodule PruebaAuthWeb.ProfileLive do
   use PruebaAuthWeb, :live_view
 
-  on_mount {TestAuthWeb.UserAuth, :mount_current_user}
+  on_mount {PruebaAuthWeb.UserAuth, :mount_current_user}
 
   def render(assigns) do
     ~H"""
@@ -11,7 +11,6 @@ defmodule PruebaAuthWeb.ProfileLive do
   end
 
   def mount(_params, _session, socket) do
-    %{current_user: current_user} = socket.assigns
     {:ok, socket}
   end
 end
